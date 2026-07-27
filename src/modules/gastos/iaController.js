@@ -1,15 +1,15 @@
 import OpenAI from 'openai';
-import multer from 'multer';
-
-// Inicializar OpenAI usando la variable de entorno
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
-
-const upload = multer({ storage: multer.memoryStorage() });
 
 export const procesarRecibo = async (req, res) => {
     try {
+        if (!process.env.OPENAI_API_KEY) {
+            return res.status(503).json({ error: 'El procesamiento de recibos con IA no está configurado' });
+        }
+        if (!req.file?.buffer) {
+            return res.status(400).json({ error: 'Debe adjuntar una imagen del recibo' });
+        }
+
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
         const imageBuffer = req.file.buffer;
         
         // Convertir el buffer a base64 para enviarlo a la API
@@ -22,7 +22,7 @@ export const procesarRecibo = async (req, res) => {
                     role: "user",
                     content: [
                         { type: "text", text: "Extrae de este recibo la fecha (YYYY-MM-DD), el monto total (número) y una descripción breve. Devuélvelo solo en formato JSON." },
-                        { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64Image}` } }
+                        { type: "image_url", image_url: { url: `data:${req.file.mimetype};base64,${base64Image}` } }
                     ],
                 },
             ],

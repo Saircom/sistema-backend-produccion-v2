@@ -4,7 +4,14 @@ import { gastoController } from './gasto.controller.js';
 import { procesarRecibo } from './iaController.js';
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (req, file, callback) => {
+        const permitidos = new Set(['image/jpeg', 'image/png', 'image/webp']);
+        callback(permitidos.has(file.mimetype) ? null : new Error('Solo se permiten imágenes JPG, PNG o WEBP'), permitidos.has(file.mimetype));
+    }
+});
 
 
 // --- Rutas ---

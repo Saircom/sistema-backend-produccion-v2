@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import routes from './routes.js'; // Es obligatorio incluir el .js al final
 import { realtimeMutationMiddleware } from './realtime/socket.js';
 import { securityHeaders } from './middleware/security.middleware.js';
+import { corsOrigin } from './config/cors.js';
 
 // Reemplazo moderno para emular __dirname en ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -16,13 +17,8 @@ app.set('trust proxy', Number(process.env.TRUST_PROXY || 0));
 app.use(securityHeaders);
 
 // Configuración de CORS
-const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
-    .split(',').map(origin => origin.trim()).filter(Boolean);
 app.use(cors({
-    origin(origin, callback) {
-        if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-        return callback(Object.assign(new Error('Origen no permitido por CORS'), { status: 403 }));
-    },
+    origin: corsOrigin,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Socket-Id'],
     maxAge: 600
