@@ -4,7 +4,7 @@ const configuredOrigins = (process.env.CORS_ORIGIN || '')
     .filter(Boolean);
 
 const defaultOrigins = [
-    'https://sistema-frontend-produccion-v2-production.up.railway.app',
+    'https://sistema-frontend-produccion-v2-production-7446.up.railway.app',
     'http://localhost:5173',
     'http://localhost:5174',
     'http://127.0.0.1:5173',
