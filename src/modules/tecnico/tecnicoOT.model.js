@@ -231,7 +231,7 @@ export const tecnicoOTModel = {
 
             FROM ot_detalles od
 
-            INNER JOIN equipos e
+            LEFT JOIN equipos e
                 ON e.id_equipo = od.id_equipo
 
             LEFT JOIN marcas ma
@@ -270,6 +270,7 @@ export const tecnicoOTModel = {
                 equiposMap.set(fila.id_ot_detalle, {
                     id_ot_detalle: fila.id_ot_detalle,
                     id_equipo: fila.id_equipo,
+                    sin_equipo: !fila.id_equipo,
                     estado_equipo: fila.estado_equipo,
 
                     tipo_equipo: fila.tipo_equipo,

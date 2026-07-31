@@ -504,6 +504,20 @@ export const informesRepository = {
         return rows;
     },
 
+    async obtenerLecturasCombustion(idInforme) {
+        const [rows] = await db.execute(
+            `
+            SELECT *
+            FROM lecturas_combustion
+            WHERE id_informe = ?
+            ORDER BY 1 ASC
+            `,
+            [Number(idInforme)]
+        );
+
+        return rows;
+    },
+
     async obtenerVoltajeAmperaje(idInforme) {
         const [rows] = await db.execute(
             `
@@ -869,6 +883,7 @@ export const informesRepository = {
             servicios,
             lecturasCompresor,
             lecturasSecador,
+            lecturasCombustion,
             voltajeAmperaje,
             filtrosComponentes,
             informeTecnico,
@@ -886,6 +901,10 @@ export const informesRepository = {
             ),
 
             this.obtenerLecturasSecador(
+                informe.id_informe
+            ),
+
+            this.obtenerLecturasCombustion(
                 informe.id_informe
             ),
 
@@ -1069,6 +1088,9 @@ export const informesRepository = {
             lecturas_secador:
                 lecturasSecador,
 
+            lecturas_combustion:
+                lecturasCombustion,
+
             voltaje_amperaje:
                 voltajeAmperaje,
 
@@ -1208,6 +1230,23 @@ export const informesRepository = {
                     idInforme,
                     payload.lecturas_secador
                 );
+            }
+
+            if (payload.lecturas_combustion !== undefined) {
+                const datosCombustion = limpiarObjeto(
+                    obtenerPrimerRegistro(payload.lecturas_combustion)
+                );
+
+                if (Object.keys(datosCombustion).length > 0) {
+                    await connection.execute(
+                        'DELETE FROM lecturas_combustion WHERE id_informe = ?',
+                        [idInforme]
+                    );
+                    await connection.query(
+                        'INSERT INTO lecturas_combustion SET ?',
+                        [{ id_informe: idInforme, ...datosCombustion }]
+                    );
+                }
             }
 
             if (payload.voltaje_amperaje !== undefined) {
@@ -1375,23 +1414,6 @@ export const informesRepository = {
 
             const idOt =
                 informes[0].id_ot;
-
-            const [evidencias] = await connection.execute(
-                `
-                SELECT COUNT(*) AS total
-                FROM imagenes_informe
-                WHERE id_informe = ?
-                `,
-                [idInforme]
-            );
-
-            if (Number(evidencias[0]?.total ?? 0) < 5) {
-                const error = new Error(
-                    'No puede finalizar el informe. Debe registrar como mínimo 5 evidencias fotográficas.'
-                );
-                error.statusCode = 400;
-                throw error;
-            }
 
             await connection.execute(
                 `

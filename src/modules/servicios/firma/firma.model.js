@@ -3,11 +3,11 @@ export const FirmaModel = {
     // 1. Crear o Actualizar (Upsert) - Útil si no sabes si el registro ya existe
     async save(connection, data) {
         const sql = `
-            INSERT INTO cierre_responsable (id_informe, firma, encargado)
-            VALUES (?, ?, ?)
+            INSERT INTO servicio_responsable (id_servicio, firma, encargado)
+            VALUES (?, ?, ?) AS nueva_data
             ON DUPLICATE KEY UPDATE
-                firma = VALUES(firma),
-                encargado = VALUES(encargado)
+                firma = nueva_data.firma,
+                encargado = nueva_data.encargado
         `;
 
         const values = [
@@ -23,11 +23,11 @@ export const FirmaModel = {
     // 2. Actualizar (Específico) - Ideal para editar registros que ya existen
     async update(connection, id_servicio, data) {
         const sql = `
-            UPDATE cierre_responsable
+            UPDATE servicio_responsable
             SET 
                 firma = ?,
                 encargado = ?
-            WHERE id_informe = ?
+            WHERE id_servicio = ?
         `;
 
         const values = [
@@ -45,9 +45,9 @@ export const FirmaModel = {
     // 3. Buscar por ID de Servicio
     async findByServicio(connection, id_servicio) {
         const [rows] = await connection.query(
-            `SELECT id_informe AS id_servicio, firma, encargado
-             FROM cierre_responsable
-             WHERE id_informe = ?`,
+            `SELECT id_servicio, firma, encargado 
+             FROM servicio_responsable 
+             WHERE id_servicio = ?`,
             [id_servicio]
         );
 

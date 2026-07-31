@@ -35,7 +35,7 @@ class TiempoModel {
             INNER JOIN ordenes_trabajo ot ON ot.id_ot = od.id_ot
             INNER JOIN cotizaciones c ON c.id_cotizacion = ot.id_cotizacion
             INNER JOIN clientes cl ON cl.id_cliente = c.id_cliente
-            INNER JOIN equipos e ON e.id_equipo = od.id_equipo
+            LEFT JOIN equipos e ON e.id_equipo = od.id_equipo
             LEFT JOIN marcas m ON m.id_marca = e.id_marca
             LEFT JOIN usuarios tecnico ON tecnico.id_usuario = ot.id_tecnico_responsable
             LEFT JOIN usuarios creador ON creador.id_usuario = ot.id_usuario_creador

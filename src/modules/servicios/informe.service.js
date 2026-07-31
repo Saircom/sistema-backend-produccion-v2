@@ -157,18 +157,47 @@ const tieneDatoReal = (seccion) => {
 };
 
 const validarContenidoMinimo = (detalle) => {
-    const secciones = [
-        ['lecturas_compresor', 'lectura del compresor'],
-        ['lecturas_secador', 'lectura del secador'],
-        ['voltaje_amperaje', 'lectura de voltaje y amperaje']
-    ];
+    const tipoEquipo = String(detalle?.equipo?.tipo_equipo ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase();
+
+    let secciones;
+
+    if (tipoEquipo.includes('secador')) {
+        secciones = [
+            ['lecturas_secador', 'lectura del secador'],
+            ['voltaje_amperaje', 'lectura de voltaje y amperaje']
+        ];
+    } else if (
+        tipoEquipo.includes('grupo')
+        || tipoEquipo.includes('electrogeno')
+    ) {
+        secciones = [
+            ['lecturas_combustion', 'lectura del grupo electrógeno'],
+            ['voltaje_amperaje', 'lectura de voltaje y amperaje']
+        ];
+    } else if (tipoEquipo.includes('portatil')) {
+        secciones = [
+            ['lecturas_compresor', 'lectura del compresor'],
+            ['lecturas_combustion', 'lectura de combustión'],
+            ['voltaje_amperaje', 'lectura de voltaje y amperaje']
+        ];
+    } else {
+        secciones = [
+            ['lecturas_compresor', 'lectura del compresor'],
+            ['lecturas_secador', 'lectura del secador'],
+            ['voltaje_amperaje', 'lectura de voltaje y amperaje']
+        ];
+    }
 
     const faltantes = secciones
         .filter(([campo]) => !tieneDatoReal(detalle?.[campo]))
         .map(([, etiqueta]) => etiqueta);
 
-    if (!Array.isArray(detalle?.imagenes_servicio) || detalle.imagenes_servicio.length < 5) {
-        faltantes.push('5 evidencias fotográficas como mínimo');
+    if (!Array.isArray(detalle?.imagenes_servicio) || detalle.imagenes_servicio.length === 0) {
+        faltantes.push('una imagen como mínimo');
     }
 
     if (faltantes.length > 0) {
@@ -197,6 +226,11 @@ const normalizarPayloadInforme = (payload) => {
     if (Object.prototype.hasOwnProperty.call(datos, 'lecturas_secador')) {
         resultado.lecturas_secador =
             limpiarSeccion(datos.lecturas_secador);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(datos, 'lecturas_combustion')) {
+        resultado.lecturas_combustion =
+            limpiarSeccion(datos.lecturas_combustion);
     }
 
     if (Object.prototype.hasOwnProperty.call(datos, 'voltaje_amperaje')) {

@@ -132,7 +132,7 @@ export const otModel = {
 
             FROM cotizacion_detalles cd
 
-            INNER JOIN equipos e
+            LEFT JOIN equipos e
                 ON e.id_equipo = cd.id_equipo
 
             LEFT JOIN marcas m
@@ -263,7 +263,7 @@ export const otModel = {
             }
 
             /*
-             * 2. Evitar una OT duplicada para la cotización.
+             * 2. Evitar más de una OT para la misma cotización.
              */
             const [ordenExistente] =
                 await connection.execute(
@@ -278,7 +278,7 @@ export const otModel = {
 
             if (ordenExistente.length > 0) {
                 throw new Error(
-                    'La cotización ya tiene una Orden de Trabajo'
+                    'La cotización ya tiene una Orden de Trabajo creada'
                 );
             }
 
@@ -352,29 +352,6 @@ export const otModel = {
             /*
              * 5. Obtener los equipos y subtipos.
              */
-            const [crucesMovilidad] = await connection.execute(
-                `
-                SELECT id_ot
-                FROM ordenes_trabajo
-                WHERE id_movilidad = ?
-                  AND estado <> 'Finalizada'
-                  AND fecha_programada < ?
-                  AND COALESCE(
-                        fecha_fin_programada,
-                        DATE_ADD(fecha_programada, INTERVAL 1 HOUR)
-                      ) > ?
-                LIMIT 1
-                FOR UPDATE
-                `,
-                [idMovilidad, fechaFinProgramada, fechaProgramada]
-            );
-
-            if (crucesMovilidad.length > 0) {
-                throw new Error(
-                    'La movilidad ya tiene otra OT dentro del horario seleccionado'
-                );
-            }
-
             const [detallesCotizacion] =
                 await connection.execute(
                     `
@@ -383,7 +360,6 @@ export const otModel = {
                         cd.id_subtipo_servicio
                     FROM cotizacion_detalles cd
                     WHERE cd.id_cotizacion = ?
-                      AND cd.id_equipo IS NOT NULL
                       AND cd.id_subtipo_servicio IS NOT NULL
                     ORDER BY
                         cd.id_equipo ASC,
@@ -394,7 +370,7 @@ export const otModel = {
 
             if (detallesCotizacion.length === 0) {
                 throw new Error(
-                    'La cotización no contiene equipos y servicios válidos'
+                    'La cotización no contiene servicios válidos'
                 );
             }
 
@@ -771,7 +747,7 @@ export const otModel = {
 
             FROM ot_detalles od
 
-            INNER JOIN equipos e
+            LEFT JOIN equipos e
                 ON e.id_equipo =
                    od.id_equipo
 
@@ -959,6 +935,19 @@ export const otModel = {
                     LEFT JOIN informes_servicio inf
                         ON inf.id_ot_detalle = od.id_ot_detalle
                     WHERE od.id_ot = ?
+                      AND EXISTS (
+                          SELECT 1
+                          FROM ot_detalle_servicios ods_requerido
+                          INNER JOIN subtipo_servicio ss_requerido
+                              ON ss_requerido.id_subtipo_servicio =
+                                 ods_requerido.id_subtipo_servicio
+                          INNER JOIN tipo_servicio ts_requerido
+                              ON ts_requerido.id_tipo_servicio =
+                                 ss_requerido.id_tipo_servicio
+                          WHERE ods_requerido.id_ot_detalle = od.id_ot_detalle
+                            AND UPPER(TRIM(ts_requerido.codigo)) <>
+                                'ACTIVIDAD_DE_APOYO'
+                      )
                       AND (
                           inf.id_informe IS NULL
                           OR inf.fecha_finalizacion IS NULL

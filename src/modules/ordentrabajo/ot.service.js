@@ -53,7 +53,7 @@ const validarRangoProgramado = (fechaInicio, fechaFin) => {
 
 export const otService = {
     /**
-     * Obtiene cotizaciones aprobadas que todavía no tienen una OT.
+     * Obtiene cotizaciones aprobadas sin una OT activa.
      */
     async getAll() {
         const cotizaciones = await otModel.getAll();

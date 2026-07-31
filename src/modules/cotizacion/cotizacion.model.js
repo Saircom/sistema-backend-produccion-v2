@@ -87,12 +87,6 @@ const Cotizacion = {
             `;
 
             for (const detalle of detalles) {
-                if (!detalle.idEquipo) {
-                    throw new Error(
-                        'Todos los detalles deben tener un equipo seleccionado'
-                    );
-                }
-
                 const subtipos = Array.isArray(detalle.idServicios)
                     ? detalle.idServicios
                     : detalle.idServicio
@@ -101,7 +95,7 @@ const Cotizacion = {
 
                 if (subtipos.length === 0) {
                     throw new Error(
-                        'Cada equipo debe tener al menos un subtipo de servicio'
+                        'Cada detalle debe tener al menos un subtipo de servicio'
                     );
                 }
 
@@ -186,15 +180,15 @@ const Cotizacion = {
                 const subtipos = Array.isArray(detalle.idServicios)
                     ? detalle.idServicios
                     : [];
-                if (!detalle.idEquipo || subtipos.length === 0) {
-                    const error = new Error('Cada equipo debe tener al menos un servicio');
+                if (subtipos.length === 0) {
+                    const error = new Error('Cada detalle debe tener al menos un servicio');
                     error.statusCode = 400;
                     throw error;
                 }
                 for (const idSubtipo of subtipos) {
                     await connection.execute(sqlDetalle, [
                         idCotizacion,
-                        detalle.idEquipo,
+                        detalle.idEquipo || null,
                         idSubtipo
                     ]);
                 }
@@ -352,13 +346,12 @@ const Cotizacion = {
         const equiposMap = new Map();
 
         for (const detalle of detalles) {
-            if (!detalle.id_equipo) {
-                continue;
-            }
+            const claveEquipo = detalle.id_equipo ?? 'sin-equipo';
 
-            if (!equiposMap.has(detalle.id_equipo)) {
-                equiposMap.set(detalle.id_equipo, {
+            if (!equiposMap.has(claveEquipo)) {
+                equiposMap.set(claveEquipo, {
                     id_equipo: detalle.id_equipo,
+                    sin_equipo: !detalle.id_equipo,
                     tipo_equipo: detalle.tipo_equipo,
                     marca: detalle.nombre_marca,
                     id_marca: detalle.id_marca,
@@ -372,7 +365,7 @@ const Cotizacion = {
             }
 
             if (detalle.id_subtipo_servicio) {
-                equiposMap.get(detalle.id_equipo).servicios.push({
+                equiposMap.get(claveEquipo).servicios.push({
                     id_detalle: detalle.id_detalle,
                     id_tipo_servicio: detalle.id_tipo_servicio,
                     codigo_tipo_servicio: detalle.codigo_tipo_servicio,

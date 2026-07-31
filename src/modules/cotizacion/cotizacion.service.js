@@ -3,7 +3,7 @@ import Cotizacion from './cotizacion.model.js';
 const createCotizacionService = async (cotizacionData) => {
     // Regla de negocio: Validar que existan detalles
     if (!cotizacionData.detalles || cotizacionData.detalles.length === 0) {
-        throw new Error("La cotización debe incluir al menos un equipo y un servicio.");
+        throw new Error("La cotización debe incluir al menos un servicio.");
     }
     
     // Llamar al modelo para la persistencia
@@ -44,7 +44,7 @@ const updateCotizacionService = async (id, data) => {
         throw error;
     }
     if (!Array.isArray(data.detalles) || data.detalles.length === 0) {
-        const error = new Error('La cotización debe incluir al menos un equipo y un servicio');
+        const error = new Error('La cotización debe incluir al menos un servicio');
         error.statusCode = 400;
         throw error;
     }
