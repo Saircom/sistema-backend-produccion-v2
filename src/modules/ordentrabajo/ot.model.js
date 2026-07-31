@@ -35,7 +35,6 @@ export const otModel = {
 
             LEFT JOIN ordenes_trabajo ot
                 ON ot.id_cotizacion = c.id_cotizacion
-                AND ot.estado <> 'Finalizada'
 
             WHERE
                 c.estado = 'aprobada'
@@ -264,7 +263,7 @@ export const otModel = {
             }
 
             /*
-             * 2. Evitar una OT activa duplicada.
+             * 2. Evitar una OT duplicada para la cotización.
              */
             const [ordenExistente] =
                 await connection.execute(
@@ -272,7 +271,6 @@ export const otModel = {
                     SELECT id_ot
                     FROM ordenes_trabajo
                     WHERE id_cotizacion = ?
-                      AND estado <> 'Finalizada'
                     LIMIT 1
                     `,
                     [idCotizacion]
@@ -280,7 +278,7 @@ export const otModel = {
 
             if (ordenExistente.length > 0) {
                 throw new Error(
-                    'La cotización ya tiene una Orden de Trabajo activa'
+                    'La cotización ya tiene una Orden de Trabajo'
                 );
             }
 

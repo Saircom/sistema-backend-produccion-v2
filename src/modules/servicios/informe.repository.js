@@ -1376,6 +1376,23 @@ export const informesRepository = {
             const idOt =
                 informes[0].id_ot;
 
+            const [evidencias] = await connection.execute(
+                `
+                SELECT COUNT(*) AS total
+                FROM imagenes_informe
+                WHERE id_informe = ?
+                `,
+                [idInforme]
+            );
+
+            if (Number(evidencias[0]?.total ?? 0) < 5) {
+                const error = new Error(
+                    'No puede finalizar el informe. Debe registrar como mínimo 5 evidencias fotográficas.'
+                );
+                error.statusCode = 400;
+                throw error;
+            }
+
             await connection.execute(
                 `
                 UPDATE informes_servicio

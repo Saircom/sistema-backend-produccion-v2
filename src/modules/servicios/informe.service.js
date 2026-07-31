@@ -167,8 +167,8 @@ const validarContenidoMinimo = (detalle) => {
         .filter(([campo]) => !tieneDatoReal(detalle?.[campo]))
         .map(([, etiqueta]) => etiqueta);
 
-    if (!Array.isArray(detalle?.imagenes_servicio) || detalle.imagenes_servicio.length === 0) {
-        faltantes.push('una imagen como mínimo');
+    if (!Array.isArray(detalle?.imagenes_servicio) || detalle.imagenes_servicio.length < 5) {
+        faltantes.push('5 evidencias fotográficas como mínimo');
     }
 
     if (faltantes.length > 0) {
