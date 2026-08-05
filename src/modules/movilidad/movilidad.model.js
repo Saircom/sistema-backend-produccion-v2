@@ -4,7 +4,18 @@ export const movilidadModel = {
 
     // CORREGIDO: Ahora retorna todos los registros, no solo el primero
     async getAll() {
-        const [rows] = await db.query('SELECT * FROM movilidades');
+        const [rows] = await db.query(`
+            SELECT m.*, pm.proxima_fecha_mantenimiento,
+                   pm.proximo_kilometraje, pm.dias_alerta, pm.kilometros_alerta
+            FROM movilidades m
+            LEFT JOIN mantenimientos pm ON pm.id = (
+                SELECT mt.id FROM mantenimientos mt
+                WHERE mt.movilidad_id = m.id_movilidad
+                  AND (mt.proxima_fecha_mantenimiento IS NOT NULL OR mt.proximo_kilometraje IS NOT NULL)
+                ORDER BY mt.fecha_mantenimiento DESC, mt.id DESC LIMIT 1
+            )
+            ORDER BY m.placa
+        `);
         return rows;
     },
 
@@ -28,18 +39,47 @@ export const movilidadModel = {
             throw new Error("Error al crear la movilidad: " + error.message);
         }
     },
+
+    async updateMovilidad(idMovilidad, data) {
+        const [result] = await db.execute(
+            `UPDATE movilidades m
+             SET placa = ?, marca = ?, modelo = ?, tipo_vehiculo = ?,
+                 kilometraje_actual = ?,
+                 estado_disponibilidad = CASE
+                     WHEN ? = 'En mantenimiento' THEN 'En mantenimiento'
+                     WHEN EXISTS (
+                         SELECT 1 FROM ordenes_trabajo ot
+                         WHERE ot.id_movilidad = m.id_movilidad
+                           AND ot.estado <> 'Finalizada'
+                     ) THEN 'En uso'
+                     ELSE 'Disponible'
+                 END
+             WHERE id_movilidad = ?`,
+            [data.placa, data.marca, data.modelo, data.tipo_vehiculo,
+                data.kilometraje_actual, data.estado_disponibilidad, idMovilidad]
+        );
+
+        return result.affectedRows > 0;
+    },
     // --- MANTENIMIENTOS (Historial) ---
     async registrarMantenimiento(data) {
-        const { movilidad_id, fecha_mantenimiento, kilometraje_al_momento, tipo, descripcion_trabajo, observaciones } = data;
+        const { movilidad_id, fecha_mantenimiento, kilometraje_al_momento, tipo,
+            descripcion_trabajo, observaciones, proxima_fecha_mantenimiento,
+            proximo_kilometraje, dias_alerta, kilometros_alerta } = data;
         const connection = await db.getConnection();
         try {
             await connection.beginTransaction();
 
             // 1. Insertar el mantenimiento (Esto ya estaba bien)
             await connection.query(
-                `INSERT INTO mantenimientos (movilidad_id, fecha_mantenimiento, kilometraje_al_momento, tipo, descripcion_trabajo, observaciones) 
-             VALUES (?, ?, ?, ?, ?, ?)`,
-                [movilidad_id, fecha_mantenimiento, kilometraje_al_momento, tipo, descripcion_trabajo, observaciones]
+                `INSERT INTO mantenimientos (
+                    movilidad_id, fecha_mantenimiento, kilometraje_al_momento, tipo,
+                    descripcion_trabajo, observaciones, proxima_fecha_mantenimiento,
+                    proximo_kilometraje, dias_alerta, kilometros_alerta
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [movilidad_id, fecha_mantenimiento, kilometraje_al_momento, tipo,
+                    descripcion_trabajo, observaciones, proxima_fecha_mantenimiento || null,
+                    proximo_kilometraje || null, dias_alerta, kilometros_alerta]
             );
 
             // 2. ACTUALIZAR el kilometraje (CORREGIDO: WHERE id = ?)

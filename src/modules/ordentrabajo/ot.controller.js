@@ -103,9 +103,17 @@ export const otController = {
                 idMovilidad,
                 fechaProgramada,
                 fechaFinProgramada,
-                idUsuarioCreador,
                 idsTecnicosApoyo
             } = req.body;
+
+            const idUsuarioCreador = req.user?.id_usuario;
+
+            if (!idUsuarioCreador) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'No se pudo identificar al usuario autenticado'
+                });
+            }
 
             const orden = await otService.create({
                 idCotizacion,
@@ -194,6 +202,22 @@ export const otController = {
                     success: false,
                     message: error.message
                 });
+        }
+    },
+
+    async updateProgramacion(req, res) {
+        try {
+            const orden = await otService.updateProgramacion(req.params.idOt, req.body);
+            return res.status(200).json({
+                success: true,
+                message: 'Programación de la Orden de Trabajo actualizada correctamente',
+                data: orden
+            });
+        } catch (error) {
+            return res.status(obtenerStatusError(error)).json({
+                success: false,
+                message: error.message
+            });
         }
     },
 

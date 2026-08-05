@@ -60,6 +60,13 @@ router.patch(
     otController.updateEstado
 );
 
+router.put(
+    '/:idOt/programacion',
+    authMiddleware,
+    permitirRoles('SUPERADMINISTRADOR'),
+    otController.updateProgramacion
+);
+
 /*
 |--------------------------------------------------------------------------
 | DETALLES DE LA OT

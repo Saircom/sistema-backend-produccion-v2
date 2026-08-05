@@ -1,10 +1,33 @@
 import Cotizacion from './cotizacion.model.js';
 
+const validarCostos = cotizacionData => {
+    if (cotizacionData.movilidad !== null && cotizacionData.movilidad !== undefined && cotizacionData.movilidad !== '') {
+        const adicional = Number(cotizacionData.movilidad);
+        if (!Number.isFinite(adicional) || adicional < 0) {
+            const error = new Error('El costo adicional debe ser un monto válido mayor o igual a cero');
+            error.statusCode = 400;
+            throw error;
+        }
+    }
+
+    for (const detalle of cotizacionData.detalles || []) {
+        for (const servicio of detalle.idServicios || []) {
+            const precio = servicio && typeof servicio === 'object' ? servicio.precio : null;
+            if (precio === null || precio === undefined || precio === '' || !Number.isFinite(Number(precio)) || Number(precio) < 0) {
+                const error = new Error('Cada subtipo de servicio debe tener un precio válido');
+                error.statusCode = 400;
+                throw error;
+            }
+        }
+    }
+};
+
 const createCotizacionService = async (cotizacionData) => {
     // Regla de negocio: Validar que existan detalles
     if (!cotizacionData.detalles || cotizacionData.detalles.length === 0) {
         throw new Error("La cotización debe incluir al menos un servicio.");
     }
+    validarCostos(cotizacionData);
     
     // Llamar al modelo para la persistencia
     return await Cotizacion.create(cotizacionData, cotizacionData.detalles);
@@ -31,7 +54,7 @@ const TRANSICIONES_COTIZACION = {
     rechazada: []
 };
 
-const updateCotizacionService = async (id, data) => {
+const updateCotizacionService = async (id, data, { rol } = {}) => {
     const idCotizacion = Number(id);
     if (!Number.isInteger(idCotizacion) || idCotizacion <= 0) {
         const error = new Error('El ID de la cotización no es válido');
@@ -48,6 +71,7 @@ const updateCotizacionService = async (id, data) => {
         error.statusCode = 400;
         throw error;
     }
+    validarCostos(data);
 
     const estadoActual = await Cotizacion.getEstadoById(idCotizacion);
     if (!estadoActual) {
@@ -55,17 +79,24 @@ const updateCotizacionService = async (id, data) => {
         error.statusCode = 404;
         throw error;
     }
-    if (estadoActual !== 'borrador') {
-        const error = new Error('Solo se pueden editar cotizaciones en estado borrador');
+    const esSuperadministrador = String(rol ?? '').trim().toUpperCase() === 'SUPERADMINISTRADOR';
+    const puedeEditar = esSuperadministrador || estadoActual === 'borrador';
+
+    if (!puedeEditar) {
+        const error = new Error(
+            estadoActual === 'aprobada'
+                ? 'Solo el Superadministrador puede editar una cotización aprobada'
+                : 'Solo se pueden editar cotizaciones en estado borrador'
+        );
         error.statusCode = 409;
         throw error;
     }
 
-    await Cotizacion.update(idCotizacion, data, data.detalles);
+    await Cotizacion.update(idCotizacion, data, data.detalles, estadoActual);
     return await Cotizacion.getById(idCotizacion);
 };
 
-const updateEstadoService = async (id, estado) => {
+const updateEstadoService = async (id, estado, { rol } = {}) => {
     const idCotizacion = Number(id);
     const estadoNormalizado = String(estado ?? '').trim().toLowerCase();
 
@@ -95,7 +126,10 @@ const updateEstadoService = async (id, estado) => {
         return { id_cotizacion: idCotizacion, estado: estadoActual };
     }
 
-    const estadosPermitidos = TRANSICIONES_COTIZACION[estadoActual] ?? [];
+    const esSuperadministrador = String(rol ?? '').trim().toUpperCase() === 'SUPERADMINISTRADOR';
+    const estadosPermitidos = esSuperadministrador
+        ? ESTADOS_COTIZACION.filter(valor => valor !== estadoActual)
+        : (TRANSICIONES_COTIZACION[estadoActual] ?? []);
 
     if (!estadosPermitidos.includes(estadoNormalizado)) {
         const siguiente = estadosPermitidos.length

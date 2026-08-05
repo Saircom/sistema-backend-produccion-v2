@@ -320,7 +320,8 @@ export const informesRepository = {
             SELECT
                 id_informe,
                 id_ot_detalle,
-                fecha_finalizacion
+                fecha_finalizacion,
+                estado_revision
             FROM informes_servicio
             WHERE id_ot_detalle = ?
             LIMIT 1
@@ -626,6 +627,10 @@ export const informesRepository = {
                 inf.id_informe,
                 inf.fecha_finalizacion,
 
+                di.descripcionTrabajo,
+                di.recomendaciones,
+                di.conclusiones,
+
                 eq.tipo_equipo,
                 eq.modelo,
                 eq.serie,
@@ -669,6 +674,10 @@ export const informesRepository = {
                 ON inf.id_ot_detalle =
                    od.id_ot_detalle
 
+            LEFT JOIN detalle_informe di
+                ON di.id_informe =
+                   inf.id_informe
+
             LEFT JOIN ot_detalle_servicios ods
                 ON ods.id_ot_detalle =
                    od.id_ot_detalle
@@ -705,6 +714,10 @@ export const informesRepository = {
 
                 inf.id_informe,
                 inf.fecha_finalizacion,
+
+                di.descripcionTrabajo,
+                di.recomendaciones,
+                di.conclusiones,
 
                 eq.tipo_equipo,
                 eq.modelo,
@@ -1208,6 +1221,17 @@ export const informesRepository = {
                 throw new Error('No se pudo crear u obtener el informe');
             }
 
+            if (
+                tecnicoId
+                && String(informes[0].estado_revision ?? '').trim().toLowerCase() === 'revisado'
+            ) {
+                const error = new Error(
+                    'El informe ya fue revisado y no puede ser editado por el tecnico'
+                );
+                error.statusCode = 409;
+                throw error;
+            }
+
             const idInforme = Number(informes[0].id_informe);
 
             if (!Number.isInteger(idInforme) || idInforme <= 0) {
@@ -1344,6 +1368,16 @@ export const informesRepository = {
             `,
                 [detalleId]
             );
+
+            if (tecnicoId) {
+                await connection.execute(
+                    `UPDATE informes_servicio
+                     SET estado_revision = 'No revisado'
+                     WHERE id_informe = ?
+                       AND estado_revision = 'Observado'`,
+                    [idInforme]
+                );
+            }
 
             await connection.commit();
 

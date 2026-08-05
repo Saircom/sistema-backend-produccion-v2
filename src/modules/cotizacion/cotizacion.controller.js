@@ -26,7 +26,7 @@ const postCotizacion = async (req, res) => {
         });
     } catch (error) {
         console.error("Error al crear cotización:", error);
-        res.status(500).json({ success: false, message: error.message });
+        res.status(error.statusCode || 500).json({ success: false, message: error.message });
     }
 };
 
@@ -68,7 +68,8 @@ const updateEstado = async (req, res) => {
     try {
         const resultado = await service.updateEstadoService(
             req.params.id,
-            req.body?.estado
+            req.body?.estado,
+            { rol: req.user?.rol }
         );
 
         return res.status(200).json({
@@ -92,7 +93,8 @@ const updateCotizacion = async (req, res) => {
     try {
         const resultado = await service.updateCotizacionService(
             req.params.id,
-            req.body
+            req.body,
+            { rol: req.user?.rol }
         );
         return res.status(200).json({
             success: true,

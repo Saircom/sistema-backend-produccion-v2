@@ -7,7 +7,7 @@ export const equiposRepository = {
     async getAll() {
         const sql = `
             SELECT 
-                e.id_equipo, e.id_cliente, e.tipo_equipo, e.sede, e.direccion, e.modelo, e.serie, e.encargado_equipo, e.codigo_interno,
+                e.id_equipo, e.id_cliente, e.tipo_equipo, e.sede, e.direccion, e.modelo, e.unidadpn, e.serie, e.unidadsn, e.encargado_equipo, e.codigo_interno,
                 e.id_marca, -- CORRECCIÓN: Enviamos el ID para que los formularios puedan leerlo
                 m.nombre AS marca,
                 c.razon_social, c.ruc
@@ -24,7 +24,7 @@ export const equiposRepository = {
     async getByCliente(idCliente) {
         const sql = `
             SELECT 
-                e.id_equipo, e.tipo_equipo, e.sede, e.direccion, e.modelo, e.serie, e.encargado_equipo, e.codigo_interno,
+                e.id_equipo, e.tipo_equipo, e.sede, e.direccion, e.modelo, e.unidadpn, e.serie, e.unidadsn, e.encargado_equipo, e.codigo_interno,
                 e.id_marca, -- CORRECCIÓN: Esencial para que el modal de edición preseleccione la marca
                 m.nombre AS marca
             FROM equipos e
@@ -64,8 +64,8 @@ export const equiposRepository = {
         }
 
         const sql = `
-            INSERT INTO equipos (id_cliente, tipo_equipo, sede, direccion, id_marca, modelo, serie, encargado_equipo, codigo_interno)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO equipos (id_cliente, tipo_equipo, sede, direccion, id_marca, modelo, unidadpn, serie, unidadsn, encargado_equipo, codigo_interno)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
         const params = [
@@ -75,7 +75,9 @@ export const equiposRepository = {
             equipo.direccion,
             equipo.id_marca, 
             equipo.modelo,
+            equipo.unidadpn,
             equipo.serie,
+            equipo.unidadsn,
             equipo.encargado_equipo,
             equipo.codigo_interno
         ];
@@ -93,7 +95,7 @@ export const equiposRepository = {
     async update(id, data) {
         const sql = `
             UPDATE equipos 
-            SET id_cliente = ?, tipo_equipo = ?, sede = ?, direccion = ?, id_marca = ?, modelo = ?, serie = ?, encargado_equipo = ?, codigo_interno = ?
+            SET id_cliente = ?, tipo_equipo = ?, sede = ?, direccion = ?, id_marca = ?, modelo = ?, unidadpn = ?, serie = ?, unidadsn = ?, encargado_equipo = ?, codigo_interno = ?
             WHERE id_equipo = ?
         `;
         const params = [
@@ -103,7 +105,9 @@ export const equiposRepository = {
             data.direccion,
             data.id_marca, 
             data.modelo,
+            data.unidadpn,
             data.serie,
+            data.unidadsn,
             data.encargado_equipo,
             data.codigo_interno,
             id

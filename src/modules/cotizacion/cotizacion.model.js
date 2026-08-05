@@ -1,10 +1,68 @@
 import db from '../../config/db.js';
 
+let preparacionEsquema = null;
+
+const asegurarColumnaMovilidad = () => {
+    if (!preparacionEsquema) {
+        preparacionEsquema = (async () => {
+            const [columnas] = await db.execute(
+                `SELECT 1 FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE()
+                   AND TABLE_NAME = 'cotizaciones'
+                   AND COLUMN_NAME = 'movilidad'`
+            );
+
+            if (columnas.length === 0) {
+                await db.query(
+                    `ALTER TABLE cotizaciones
+                     ADD COLUMN movilidad DECIMAL(12,2) NULL DEFAULT NULL AFTER centro_costo`
+                );
+            }
+        })().catch(error => {
+            preparacionEsquema = null;
+            throw error;
+        });
+    }
+
+    return preparacionEsquema;
+};
+
+const normalizarServicioCotizado = servicio => {
+    const esObjeto = servicio && typeof servicio === 'object';
+    const idSubtipoServicio = Number(
+        esObjeto
+            ? (servicio.idSubtipoServicio ?? servicio.id_subtipo_servicio ?? servicio.value)
+            : servicio
+    );
+    const precioCrudo = esObjeto ? (servicio.precio ?? null) : null;
+    const precio = precioCrudo === '' || precioCrudo === null || precioCrudo === undefined
+        ? null
+        : Number(precioCrudo);
+
+    if (!Number.isInteger(idSubtipoServicio) || idSubtipoServicio <= 0) {
+        throw new Error('El subtipo de servicio no es válido');
+    }
+    if (precio !== null && (!Number.isFinite(precio) || precio < 0)) {
+        throw new Error('El precio del servicio debe ser un monto válido mayor o igual a cero');
+    }
+    return { idSubtipoServicio, precio };
+};
+
+const normalizarCostoAdicional = valor => {
+    if (valor === '' || valor === null || valor === undefined) return null;
+    const costo = Number(valor);
+    if (!Number.isFinite(costo) || costo < 0) {
+        throw new Error('El costo adicional debe ser un monto válido mayor o igual a cero');
+    }
+    return costo;
+};
+
 const Cotizacion = {
     /**
      * Crea una cotización con múltiples equipos y subtipos de servicio.
      */
     create: async (data, detalles = []) => {
+        await asegurarColumnaMovilidad();
         const connection = await db.getConnection();
         let bloqueoObtenido = false;
 
@@ -47,11 +105,12 @@ const Cotizacion = {
                     id_cliente,
                     tipo_pago,
                     centro_costo,
+                    movilidad,
                     nota,
                     estado,
                     id_usuario_creador
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             `;
 
             const [resultadoCabecera] = await connection.execute(
@@ -61,6 +120,7 @@ const Cotizacion = {
                     data.idCliente,
                     data.tipoPago || null,
                     data.centroCosto || null,
+                    normalizarCostoAdicional(data.movilidad),
                     data.nota?.trim() || null,
                     data.estado || 'borrador',
                     data.idUsuarioCreador || null
@@ -81,9 +141,10 @@ const Cotizacion = {
                 INSERT INTO cotizacion_detalles (
                     id_cotizacion,
                     id_equipo,
-                    id_subtipo_servicio
+                    id_subtipo_servicio,
+                    precio
                 )
-                VALUES (?, ?, ?)
+                VALUES (?, ?, ?, ?)
             `;
 
             for (const detalle of detalles) {
@@ -99,11 +160,13 @@ const Cotizacion = {
                     );
                 }
 
-                for (const idSubtipoServicio of subtipos) {
+                for (const servicio of subtipos) {
+                    const { idSubtipoServicio, precio } = normalizarServicioCotizado(servicio);
                     await connection.execute(sqlDetalle, [
                         idCotizacion,
-                        detalle.idEquipo,
-                        idSubtipoServicio
+                        detalle.idEquipo || null,
+                        idSubtipoServicio,
+                        precio
                     ]);
                 }
             }
@@ -147,24 +210,27 @@ const Cotizacion = {
 
         return rows[0]?.estado ?? null;
     },
-    update: async (idCotizacion, data, detalles = []) => {
+    update: async (idCotizacion, data, detalles = [], estadoEsperado = 'borrador') => {
+        await asegurarColumnaMovilidad();
         const connection = await db.getConnection();
         try {
             await connection.beginTransaction();
             const [cabecera] = await connection.execute(
                 `UPDATE cotizaciones
-                 SET id_cliente = ?, tipo_pago = ?, centro_costo = ?, nota = ?
-                 WHERE id_cotizacion = ? AND estado = 'borrador'`,
+                 SET id_cliente = ?, tipo_pago = ?, centro_costo = ?, movilidad = ?, nota = ?
+                 WHERE id_cotizacion = ? AND estado = ?`,
                 [
                     data.idCliente,
                     data.tipoPago,
                     data.centroCosto,
+                    normalizarCostoAdicional(data.movilidad),
                     data.nota?.trim() || null,
-                    idCotizacion
+                    idCotizacion,
+                    estadoEsperado
                 ]
             );
             if (cabecera.affectedRows === 0) {
-                const error = new Error('La cotización ya no está disponible para edición');
+                const error = new Error('La cotización cambió de estado y ya no está disponible para esta edición');
                 error.statusCode = 409;
                 throw error;
             }
@@ -174,8 +240,8 @@ const Cotizacion = {
                 [idCotizacion]
             );
             const sqlDetalle = `INSERT INTO cotizacion_detalles
-                (id_cotizacion, id_equipo, id_subtipo_servicio)
-                VALUES (?, ?, ?)`;
+                (id_cotizacion, id_equipo, id_subtipo_servicio, precio)
+                VALUES (?, ?, ?, ?)`;
             for (const detalle of detalles) {
                 const subtipos = Array.isArray(detalle.idServicios)
                     ? detalle.idServicios
@@ -185,11 +251,13 @@ const Cotizacion = {
                     error.statusCode = 400;
                     throw error;
                 }
-                for (const idSubtipo of subtipos) {
+                for (const servicio of subtipos) {
+                    const { idSubtipoServicio, precio } = normalizarServicioCotizado(servicio);
                     await connection.execute(sqlDetalle, [
                         idCotizacion,
                         detalle.idEquipo || null,
-                        idSubtipo
+                        idSubtipoServicio,
+                        precio
                     ]);
                 }
             }
@@ -217,6 +285,7 @@ const Cotizacion = {
         return result.affectedRows > 0;
     },
     getAll: async (idUsuarioCreador = null) => {
+        await asegurarColumnaMovilidad();
         const filtrarPorCreador = Number.isInteger(idUsuarioCreador)
             && idUsuarioCreador > 0;
         const sql = `
@@ -226,6 +295,7 @@ const Cotizacion = {
             c.id_cliente,
             c.tipo_pago,
             c.centro_costo,
+            c.movilidad,
             c.fecha_registro,
             c.fecha_actualizacion_estado,
             c.nota,
@@ -261,6 +331,7 @@ const Cotizacion = {
      * y los servicios agrupados por equipo.
      */
     getById: async (id) => {
+        await asegurarColumnaMovilidad();
         const sqlCabecera = `
         SELECT
             c.id_cotizacion,
@@ -268,6 +339,7 @@ const Cotizacion = {
             c.id_cliente,
             c.tipo_pago,
             c.centro_costo,
+            c.movilidad,
             c.fecha_registro,
             c.fecha_actualizacion_estado,
             c.nota,
@@ -302,6 +374,7 @@ const Cotizacion = {
             cd.id_cotizacion,
             cd.id_equipo,
             cd.id_subtipo_servicio,
+            cd.precio,
 
             e.tipo_equipo,
             e.modelo,
@@ -372,7 +445,8 @@ const Cotizacion = {
                     nombre_tipo_servicio: detalle.nombre_tipo_servicio,
                     id_subtipo_servicio: detalle.id_subtipo_servicio,
                     codigo_subtipo: detalle.codigo_subtipo,
-                    nombre_subtipo: detalle.nombre_subtipo
+                    nombre_subtipo: detalle.nombre_subtipo,
+                    precio: detalle.precio
                 });
             }
         }

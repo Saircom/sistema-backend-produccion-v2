@@ -22,6 +22,11 @@ const validarId = (value, campo = 'ID') => {
     return id;
 };
 
+const validarIdOpcional = (value, campo = 'ID') => {
+    if (value === null || value === undefined || value === '') return null;
+    return validarId(value, campo);
+};
+
 const validarFecha = (fecha) => {
     if (!fecha) {
         throw new Error(
@@ -115,7 +120,7 @@ export const otService = {
                 'El técnico responsable'
             ),
 
-            idMovilidad: validarId(
+            idMovilidad: validarIdOpcional(
                 idMovilidad,
                 'La movilidad'
             ),
@@ -170,6 +175,25 @@ export const otService = {
         }
 
         return orden;
+    },
+
+    async updateProgramacion(idOt, data) {
+        const id = validarId(idOt, 'El ID de la Orden de Trabajo');
+        const rango = validarRangoProgramado(data.fechaProgramada, data.fechaFinProgramada);
+        const idTecnicoResponsable = validarId(data.idTecnicoResponsable, 'El técnico responsable');
+        const idsTecnicosApoyo = [...new Set(
+            (Array.isArray(data.idsTecnicosApoyo) ? data.idsTecnicosApoyo : [])
+                .map(valor => validarId(valor, 'El técnico de apoyo'))
+                .filter(valor => valor !== idTecnicoResponsable)
+        )];
+        await otModel.updateProgramacion(id, {
+            idTecnicoResponsable,
+            idsTecnicosApoyo,
+            idMovilidad: validarIdOpcional(data.idMovilidad, 'La movilidad'),
+            fechaProgramada: rango.inicio,
+            fechaFinProgramada: rango.fin
+        });
+        return await this.getOrdenById(id);
     },
 
     /**

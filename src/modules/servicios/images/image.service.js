@@ -3,6 +3,7 @@ import cloudinary from '../../../config/cloudinary.js';
 import sharp from 'sharp';
 
 const CARPETA = 'imagenes_informe';
+const MAX_IMAGENES_POR_CARGA = 50;
 
 const subirBuffer = buffer => new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
@@ -60,6 +61,20 @@ const validarId = (valor, campo) => {
     return id;
 };
 
+const validarCupoInforme = async (idInforme, cantidadNueva) => {
+    const registradas = await ImageModel.findByInforme(idInforme);
+    const totalActual = Array.isArray(registradas) ? registradas.length : 0;
+
+    if (totalActual + cantidadNueva > MAX_IMAGENES_POR_CARGA) {
+        const disponibles = Math.max(0, MAX_IMAGENES_POR_CARGA - totalActual);
+        const error = new Error(
+            `El informe permite hasta ${MAX_IMAGENES_POR_CARGA} imágenes. Puede agregar ${disponibles} más.`
+        );
+        error.statusCode = 400;
+        throw error;
+    }
+};
+
 const eliminarCloudinary = async publicId => {
     if (!publicId) return;
 
@@ -76,6 +91,7 @@ const eliminarCloudinary = async publicId => {
 const ImageService = {
     async uploadImage({ id_informe, titulo, fileBuffer }) {
         const idInforme = validarId(id_informe, 'El ID del informe');
+        await validarCupoInforme(idInforme, 1);
         const cloudRes = await procesarYSubir(fileBuffer);
 
         try {
@@ -108,11 +124,15 @@ const ImageService = {
             throw error;
         }
 
-        if (archivos.length > 10) {
-            const error = new Error('Solo se permiten hasta 10 imágenes por carga');
+        if (archivos.length > MAX_IMAGENES_POR_CARGA) {
+            const error = new Error(
+                `Solo se permiten hasta ${MAX_IMAGENES_POR_CARGA} imágenes por carga`
+            );
             error.statusCode = 400;
             throw error;
         }
+
+        await validarCupoInforme(idInforme, archivos.length);
 
         const imagenesSubidas = [];
         const imagenesGuardadas = [];

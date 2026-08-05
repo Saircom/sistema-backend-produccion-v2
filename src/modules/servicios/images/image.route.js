@@ -3,10 +3,11 @@ import ImageController from './image.controller.js';
 import upload from '../../../utils/multer.js';
 
 const router = express.Router();
+const MAX_IMAGENES_POR_INFORME = 50;
 
 router.post(
     '/informe/:idInforme/imagenes',
-    upload.array('imagenes', 10),
+    upload.array('imagenes', MAX_IMAGENES_POR_INFORME),
     ImageController.uploadImages
 );
 

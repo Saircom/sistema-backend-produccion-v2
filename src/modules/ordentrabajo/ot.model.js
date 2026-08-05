@@ -323,6 +323,7 @@ export const otModel = {
             /*
              * 4. Validar movilidad.
              */
+            if (idMovilidad) {
             const [movilidades] =
                 await connection.execute(
                     `
@@ -347,6 +348,7 @@ export const otModel = {
                 throw new Error(
                     'La movilidad seleccionada no está disponible'
                 );
+            }
             }
 
             /*
@@ -512,7 +514,7 @@ export const otModel = {
             /*
              * 11. Marcar movilidad como asignada.
              */
-            await connection.execute(
+            if (idMovilidad) await connection.execute(
                 `
     UPDATE movilidades
     SET estado_disponibilidad = 'En uso'
@@ -607,7 +609,7 @@ export const otModel = {
                 ON creador.id_usuario =
                    ot.id_usuario_creador
 
-            INNER JOIN movilidades m
+            LEFT JOIN movilidades m
                 ON m.id_movilidad =
                    ot.id_movilidad
 
@@ -694,7 +696,7 @@ export const otModel = {
                 ON tecnico.id_usuario =
                    ot.id_tecnico_responsable
 
-            INNER JOIN movilidades m
+            LEFT JOIN movilidades m
                 ON m.id_movilidad =
                    ot.id_movilidad
 
@@ -898,6 +900,92 @@ export const otModel = {
             equipos:
                 Array.from(equiposMap.values())
         };
+    },
+
+    async updateProgramacion(idOt, data) {
+        const connection = await db.getConnection();
+        try {
+            await connection.beginTransaction();
+            const [ordenes] = await connection.execute(
+                `SELECT id_ot, id_movilidad, estado
+                 FROM ordenes_trabajo WHERE id_ot = ? FOR UPDATE`,
+                [idOt]
+            );
+            if (ordenes.length === 0) throw new Error('La Orden de Trabajo no existe');
+            const orden = ordenes[0];
+            if (orden.estado !== 'Programada') {
+                throw new Error('Solo se puede corregir una OT que continúa programada');
+            }
+
+            const [iniciados] = await connection.execute(
+                `SELECT id_ot_detalle FROM ot_detalles
+                 WHERE id_ot = ? AND estado_equipo <> 'Pendiente' LIMIT 1`,
+                [idOt]
+            );
+            if (iniciados.length > 0) throw new Error('La OT tiene equipos que ya iniciaron');
+
+            const tecnicosAsignados = [data.idTecnicoResponsable, ...data.idsTecnicosApoyo];
+            const placeholders = tecnicosAsignados.map(() => '?').join(', ');
+            const [tecnicos] = await connection.execute(
+                `SELECT u.id_usuario FROM usuarios u
+                 INNER JOIN roles r ON r.id_rol = u.id_rol
+                 WHERE u.id_usuario IN (${placeholders}) AND u.estado = 1
+                   AND UPPER(TRIM(r.nombre_rol)) = 'TECNICO'`,
+                tecnicosAsignados
+            );
+            if (tecnicos.length !== tecnicosAsignados.length) {
+                throw new Error('Uno o más técnicos no existen o están inactivos');
+            }
+
+            if (data.idMovilidad) {
+            const [movilidades] = await connection.execute(
+                `SELECT id_movilidad, estado_disponibilidad FROM movilidades
+                 WHERE id_movilidad = ? LIMIT 1 FOR UPDATE`,
+                [data.idMovilidad]
+            );
+            if (movilidades.length === 0) throw new Error('La movilidad seleccionada no existe');
+            if (movilidades[0].estado_disponibilidad === 'En mantenimiento') {
+                throw new Error('La movilidad seleccionada no está disponible');
+            }
+            }
+
+            if (data.idMovilidad) await connection.execute(
+                `UPDATE ordenes_trabajo
+                 SET id_tecnico_responsable = ?, id_movilidad = ?,
+                     fecha_programada = ?, fecha_fin_programada = ?
+                 WHERE id_ot = ? AND estado = 'Programada'`,
+                [data.idTecnicoResponsable, data.idMovilidad, data.fechaProgramada, data.fechaFinProgramada, idOt]
+            );
+            await connection.execute('DELETE FROM asignaciones_tecnicos WHERE id_ot = ?', [idOt]);
+            for (const idUsuario of tecnicosAsignados) {
+                await connection.execute(
+                    'INSERT INTO asignaciones_tecnicos (id_ot, id_usuario) VALUES (?, ?)',
+                    [idOt, idUsuario]
+                );
+            }
+            await connection.execute(
+                `UPDATE movilidades SET estado_disponibilidad = 'En uso' WHERE id_movilidad = ?`,
+                [data.idMovilidad]
+            );
+            if (orden.id_movilidad && Number(orden.id_movilidad) !== Number(data.idMovilidad)) {
+                await connection.execute(
+                    `UPDATE movilidades SET estado_disponibilidad = 'Disponible'
+                     WHERE id_movilidad = ? AND NOT EXISTS (
+                        SELECT 1 FROM ordenes_trabajo otra_ot
+                        WHERE otra_ot.id_movilidad = movilidades.id_movilidad
+                          AND otra_ot.estado <> 'Finalizada'
+                     )`,
+                    [orden.id_movilidad]
+                );
+            }
+            await connection.commit();
+            return true;
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
     },
 
     /**
