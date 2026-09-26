@@ -321,7 +321,9 @@ export const informesRepository = {
                 id_informe,
                 id_ot_detalle,
                 fecha_finalizacion,
-                estado_revision
+                estado_revision,
+                COALESCE(estado_envio, 'sin_enviar') AS estado_envio,
+                fecha_envio
             FROM informes_servicio
             WHERE id_ot_detalle = ?
             LIMIT 1
@@ -341,7 +343,10 @@ export const informesRepository = {
             SELECT
                 id_informe,
                 id_ot_detalle,
-                fecha_finalizacion
+                fecha_finalizacion,
+                estado_revision,
+                COALESCE(estado_envio, 'sin_enviar') AS estado_envio,
+                fecha_envio
             FROM informes_servicio
             WHERE id_informe = ?
             LIMIT 1
@@ -751,6 +756,9 @@ export const informesRepository = {
                 inf.id_informe,
                 inf.id_ot_detalle,
                 inf.fecha_finalizacion,
+                inf.estado_revision,
+                COALESCE(inf.estado_envio, 'sin_enviar') AS estado_envio,
+                inf.fecha_envio,
 
                 od.id_ot,
                 od.id_equipo,

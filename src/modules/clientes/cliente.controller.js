@@ -46,21 +46,22 @@ export const clientesController = {
             if (!req.user || !req.user.id_usuario) {
                 return res.status(401).json({
                     success: false,
-                    error: 'Unauthorized: Authentication required to create a client.'
+                    message: 'No autorizado: Se requiere iniciar sesión para registrar un cliente.',
+                    error: 'No autorizado: Se requiere iniciar sesión para registrar un cliente.'
                 });
             }
 
             // Unimos el cuerpo del formulario con el id del usuario que inició sesión
             const clientPayload = {
                 ...req.body,
-                creado_por: req.user.id_usuario // Inyectamos el ID del usuario
+                creado_por: req.user?.id_usuario || null // Inyectamos el ID del usuario
             };
 
             const result = await clientesService.createClient(clientPayload);
             return res.status(201).json({ success: true, ...result });
         } catch (error) {
             const statusCode = error.status || 500;
-            return res.status(statusCode).json({ success: false, error: error.message });
+            return res.status(statusCode).json({ success: false, message: error.message, error: error.message });
         }
     },
 

@@ -73,14 +73,23 @@ const updateCotizacionService = async (id, data, { rol } = {}) => {
     }
     validarCostos(data);
 
-    const estadoActual = await Cotizacion.getEstadoById(idCotizacion);
-    if (!estadoActual) {
+    const cotizacionExistente = await Cotizacion.getById(idCotizacion);
+    if (!cotizacionExistente) {
         const error = new Error('La cotización no existe');
         error.statusCode = 404;
         throw error;
     }
-    const esSuperadministrador = String(rol ?? '').trim().toUpperCase() === 'SUPERADMINISTRADOR';
+    const estadoActual = cotizacionExistente.estado;
+    const rolNormalizado = String(rol ?? '').trim().toUpperCase();
+    const esSuperadministrador = rolNormalizado === 'SUPERADMINISTRADOR';
     const puedeEditar = esSuperadministrador || estadoActual === 'borrador';
+
+    // Para el rol POSTVENTA, solo puede editar sus propias cotizaciones
+    if (rolNormalizado === 'POSTVENTA' && cotizacionExistente.id_usuario_creador && Number(cotizacionExistente.id_usuario_creador) !== Number(idUsuario)) {
+        const error = new Error('No tiene permisos para modificar cotizaciones de otros usuarios (solo lectura)');
+        error.statusCode = 403;
+        throw error;
+    }
 
     if (!puedeEditar) {
         const error = new Error(
@@ -96,7 +105,7 @@ const updateCotizacionService = async (id, data, { rol } = {}) => {
     return await Cotizacion.getById(idCotizacion);
 };
 
-const updateEstadoService = async (id, estado, { rol } = {}) => {
+const updateEstadoService = async (id, estado, { rol, idUsuario } = {}) => {
     const idCotizacion = Number(id);
     const estadoNormalizado = String(estado ?? '').trim().toLowerCase();
 
@@ -114,19 +123,30 @@ const updateEstadoService = async (id, estado, { rol } = {}) => {
         throw error;
     }
 
-    const estadoActual = await Cotizacion.getEstadoById(idCotizacion);
+    const cotizacionExistente = await Cotizacion.getById(idCotizacion);
 
-    if (!estadoActual) {
+    if (!cotizacionExistente) {
         const error = new Error('La cotización no existe');
         error.statusCode = 404;
         throw error;
     }
 
+    const estadoActual = cotizacionExistente.estado;
+
     if (estadoActual === estadoNormalizado) {
         return { id_cotizacion: idCotizacion, estado: estadoActual };
     }
 
-    const esSuperadministrador = String(rol ?? '').trim().toUpperCase() === 'SUPERADMINISTRADOR';
+    const rolNormalizado = String(rol ?? '').trim().toUpperCase();
+
+    // Para el rol POSTVENTA, solo puede cambiar estado a sus propias cotizaciones
+    if (rolNormalizado === 'POSTVENTA' && cotizacionExistente.id_usuario_creador && Number(cotizacionExistente.id_usuario_creador) !== Number(idUsuario)) {
+        const error = new Error('No tiene permisos para actualizar el estado de cotizaciones de otros usuarios (solo lectura)');
+        error.statusCode = 403;
+        throw error;
+    }
+
+    const esSuperadministrador = rolNormalizado === 'SUPERADMINISTRADOR';
     const estadosPermitidos = esSuperadministrador
         ? ESTADOS_COTIZACION.filter(valor => valor !== estadoActual)
         : (TRANSICIONES_COTIZACION[estadoActual] ?? []);

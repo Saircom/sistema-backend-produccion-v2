@@ -3,6 +3,7 @@ import { Router } from 'express';
 import {
     informesController
 } from './informe.controller.js';
+import informetecnicoControlller from '../informestecnicos/informetecnico.controller.js';
 import { requireRoles, requireSelfOrRoles } from '../../middleware/security.middleware.js';
 
 const router = Router();
@@ -22,7 +23,7 @@ const router = Router();
  */
 router.get(
     '/tecnico/:idTecnico/detalles/:idOtDetalle',
-    requireSelfOrRoles('idTecnico', 'ADMINISTRADOR', 'PLANNER'),
+    requireSelfOrRoles('idTecnico', 'ADMINISTRADOR', 'PLANNER', 'POSTVENTA'),
     informesController.getByOtDetalleTecnico
 );
 
@@ -35,7 +36,7 @@ router.get(
  */
 router.put(
     '/tecnico/:idTecnico/detalles/:idOtDetalle',
-    requireSelfOrRoles('idTecnico', 'ADMINISTRADOR', 'PLANNER'),
+    requireSelfOrRoles('idTecnico', 'ADMINISTRADOR', 'PLANNER', 'POSTVENTA'),
     informesController.guardarInformeTecnico
 );
 
@@ -47,13 +48,13 @@ router.put(
  */
 router.patch(
     '/tecnico/:idTecnico/detalles/:idOtDetalle/finalizar',
-    requireSelfOrRoles('idTecnico', 'ADMINISTRADOR', 'PLANNER'),
+    requireSelfOrRoles('idTecnico', 'ADMINISTRADOR', 'PLANNER', 'POSTVENTA'),
     informesController.finalizarTecnico
 );
 
 /**
  * =========================================================
- * RUTAS PARA ADMINISTRADOR / PLANNER
+ * RUTAS PARA ADMINISTRADOR / PLANNER / POSTVENTA
  * =========================================================
  */
 
@@ -77,7 +78,7 @@ router.get(
  */
 router.put(
     '/detalles/:idOtDetalle',
-    requireRoles('ADMINISTRADOR', 'PLANNER'),
+    requireRoles('ADMINISTRADOR', 'PLANNER', 'POSTVENTA'),
     informesController.guardarInforme
 );
 
@@ -89,7 +90,7 @@ router.put(
  */
 router.patch(
     '/detalles/:idOtDetalle/finalizar',
-    requireRoles('ADMINISTRADOR', 'PLANNER'),
+    requireRoles('ADMINISTRADOR', 'PLANNER', 'POSTVENTA'),
     informesController.finalizar
 );
 
@@ -144,6 +145,11 @@ router.get(
  * GET:
  * /api/informes/:idInforme
  */
+router.get(
+    '/reporte-servicios-export',
+    informetecnicoControlller.getReporteServiciosExport
+);
+
 router.get(
     '/:idInforme',
     informesController.getById

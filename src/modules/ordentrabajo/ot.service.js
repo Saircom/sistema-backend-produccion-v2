@@ -3,7 +3,8 @@ import { otModel } from './ot.model.js';
 const ESTADOS_OT = [
     'Programada',
     'En Proceso',
-    'Finalizada'
+    'Finalizada',
+    'Cancelada'
 ];
 
 const ESTADOS_EQUIPO = [
@@ -197,6 +198,31 @@ export const otService = {
     },
 
     /**
+     * Anula una OT existente y reprograma de manera obligatoria una nueva fecha
+     * manteniendo el mismo número de cotización.
+     */
+    async anularYReprogramar(idOt, data) {
+        const id = validarId(idOt, 'El ID de la Orden de Trabajo');
+        const rango = validarRangoProgramado(data.fechaProgramada, data.fechaFinProgramada);
+        const idTecnicoResponsable = validarId(data.idTecnicoResponsable, 'El técnico responsable');
+        const idsTecnicosApoyo = [...new Set(
+            (Array.isArray(data.idsTecnicosApoyo) ? data.idsTecnicosApoyo : [])
+                .map(valor => validarId(valor, 'El técnico de apoyo'))
+                .filter(valor => valor !== idTecnicoResponsable)
+        )];
+
+        return await otModel.anularYReprogramar(id, {
+            idTecnicoResponsable,
+            idsTecnicosApoyo,
+            idMovilidad: validarIdOpcional(data.idMovilidad, 'La movilidad'),
+            fechaProgramada: rango.inicio,
+            fechaFinProgramada: rango.fin,
+            idUsuarioCreador: validarId(data.idUsuarioCreador, 'El usuario creador'),
+            motivo: data.motivo || null
+        });
+    },
+
+    /**
      * Actualiza el estado global de una OT.
      */
     async updateEstado(idOt, estado) {
@@ -208,6 +234,12 @@ export const otService = {
         if (!ESTADOS_OT.includes(estado)) {
             throw new Error(
                 `Estado de OT no válido. Valores permitidos: ${ESTADOS_OT.join(', ')}`
+            );
+        }
+
+        if (estado === 'Cancelada') {
+            throw new Error(
+                'Para anular o cancelar una Orden de Trabajo es obligatorio reprogramar una nueva fecha para la cotización'
             );
         }
 

@@ -355,5 +355,46 @@ export const otController = {
                     message: error.message
                 });
         }
+    },
+
+    /**
+     * Anula una OT y la reprograma de manera obligatoria con nueva fecha.
+     */
+    async anularYReprogramar(req, res) {
+        try {
+            const { idOt } = req.params;
+            const {
+                fechaProgramada,
+                fechaFinProgramada,
+                idTecnicoResponsable,
+                idsTecnicosApoyo,
+                idMovilidad,
+                motivo
+            } = req.body;
+
+            const idUsuarioCreador = req.user?.id_usuario;
+
+            const resultado = await otService.anularYReprogramar(idOt, {
+                fechaProgramada,
+                fechaFinProgramada,
+                idTecnicoResponsable,
+                idsTecnicosApoyo,
+                idMovilidad,
+                idUsuarioCreador,
+                motivo
+            });
+
+            return res.status(200).json({
+                success: true,
+                message: 'Orden de Trabajo anulada y reprogramada exitosamente',
+                data: resultado
+            });
+        } catch (error) {
+            console.error('Error al anular y reprogramar la OT:', error);
+            return res.status(obtenerStatusError(error)).json({
+                success: false,
+                message: error.message
+            });
+        }
     }
 };

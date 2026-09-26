@@ -301,6 +301,7 @@ const Cotizacion = {
             c.nota,
             c.estado,
             c.id_usuario_creador,
+            COALESCE(CONCAT(u.nombres, ' ', u.apellidos), 'No registrado') AS cotizado_por,
             cl.razon_social AS nombre_cliente,
             cl.ruc,
             cl.correo,
@@ -310,11 +311,43 @@ const Cotizacion = {
             cl.distrito,
             cl.provincia,
             cl.departamento,
-            cl.zona
+            cl.zona,
+            GROUP_CONCAT(DISTINCT e.serie SEPARATOR ', ') AS series_equipos,
+            GROUP_CONCAT(DISTINCT e.modelo SEPARATOR ', ') AS modelos_equipos
         FROM cotizaciones c
         LEFT JOIN clientes cl
             ON cl.id_cliente = c.id_cliente
+        LEFT JOIN usuarios u
+            ON u.id_usuario = c.id_usuario_creador
+        LEFT JOIN cotizacion_detalles cd
+            ON cd.id_cotizacion = c.id_cotizacion
+        LEFT JOIN equipos e
+            ON e.id_equipo = cd.id_equipo
         ${filtrarPorCreador ? 'WHERE c.id_usuario_creador = ?' : ''}
+        GROUP BY
+            c.id_cotizacion,
+            c.numero_cotizacion,
+            c.id_cliente,
+            c.tipo_pago,
+            c.centro_costo,
+            c.movilidad,
+            c.fecha_registro,
+            c.fecha_actualizacion_estado,
+            c.nota,
+            c.estado,
+            c.id_usuario_creador,
+            u.nombres,
+            u.apellidos,
+            cl.razon_social,
+            cl.ruc,
+            cl.correo,
+            cl.direccion,
+            cl.celular,
+            cl.contacto,
+            cl.distrito,
+            cl.provincia,
+            cl.departamento,
+            cl.zona
         ORDER BY
             c.fecha_registro DESC,
             c.id_cotizacion DESC

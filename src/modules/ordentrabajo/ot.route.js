@@ -63,8 +63,15 @@ router.patch(
 router.put(
     '/:idOt/programacion',
     authMiddleware,
-    permitirRoles('SUPERADMINISTRADOR'),
+    permitirRoles('SUPERADMINISTRADOR', 'ADMINISTRADOR', 'PLANNER'),
     otController.updateProgramacion
+);
+
+router.post(
+    '/:idOt/anular-reprogramar',
+    authMiddleware,
+    permitirRoles('SUPERADMINISTRADOR', 'ADMINISTRADOR', 'PLANNER'),
+    otController.anularYReprogramar
 );
 
 /*

@@ -48,7 +48,7 @@ router.use(validateNumericParams);
 router.use('/dashboard', DashboardRouter);
 router.use('/tecnico-ot', requireRoles('TECNICO', 'ADMINISTRADOR', 'PLANNER'), tecnicootRouter);
 router.use('/cotizacion2', requireRoles('POSTVENTA', 'ADMINISTRADOR', 'PLANNER'), cotizacionRouter2);
-router.use('/ordentrabajo', requireRoles('ADMINISTRADOR', 'PLANNER'), ordentrabajoRouter);
+router.use('/ordentrabajo', requireRoles('ADMINISTRADOR', 'PLANNER', 'POSTVENTA'), ordentrabajoRouter);
 router.use('/tiposervicio', requireRoles('ADMINISTRADOR', 'POSTVENTA', 'PLANNER', 'TECNICO'), tiposervicioRouter);
 // 🔐 ZONA 2: RUTAS PROTEGIDAS
 // Para llegar aquí, el usuario SÍ O SÍ debió superar el 'authMiddleware'
@@ -56,13 +56,13 @@ router.use('/equipos', requireRoles('ADMINISTRADOR', 'POSTVENTA', 'PLANNER', 'TE
 router.use('/informes', requireRoles('ADMINISTRADOR', 'POSTVENTA', 'PLANNER', 'TECNICO'), informeRouter);
 router.use('/clientes', requireRoles('ADMINISTRADOR', 'POSTVENTA', 'PLANNER'), clientesRouter);
 router.use('/perfil', perfilRouter);
-router.use('/usuarios', requireRoles('ADMINISTRADOR'), usuariosRouter);
+router.use('/usuarios', requireRoles('ADMINISTRADOR', 'PLANNER', 'POSTVENTA', 'TECNICO'), usuariosRouter);
 router.use('/lecturas', requireRoles('ADMINISTRADOR', 'PLANNER', 'TECNICO'), lecturasRouter);
 router.use('/imagenes', requireRoles('ADMINISTRADOR', 'PLANNER', 'TECNICO'), imageRouter);
 router.use('/firma', requireRoles('ADMINISTRADOR', 'PLANNER', 'TECNICO'), firmaRouter);
 router.use('/gastos', requireRoles('ADMINISTRADOR', 'POSTVENTA', 'PLANNER', 'TECNICO'), gastosRouter);
 router.use('/viaticos-ot', requireRoles('ADMINISTRADOR', 'PLANNER', 'TECNICO'), viaticosRouter);
-router.use('/tiempos', requireRoles('ADMINISTRADOR', 'PLANNER', 'TECNICO'), tiemposRouter);
+router.use('/tiempos', requireRoles('ADMINISTRADOR', 'PLANNER', 'TECNICO', 'POSTVENTA'), tiemposRouter);
 router.use('/movilidades', requireRoles('ADMINISTRADOR', 'PLANNER'), movilidadRouter);
 
 router.use('/cotizacion', requireRoles('ADMINISTRADOR', 'POSTVENTA', 'PLANNER'), cotizacionRouter);

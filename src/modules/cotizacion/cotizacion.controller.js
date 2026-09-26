@@ -69,7 +69,7 @@ const updateEstado = async (req, res) => {
         const resultado = await service.updateEstadoService(
             req.params.id,
             req.body?.estado,
-            { rol: req.user?.rol }
+            { rol: req.user?.rol, idUsuario: req.user?.id_usuario }
         );
 
         return res.status(200).json({
@@ -94,7 +94,7 @@ const updateCotizacion = async (req, res) => {
         const resultado = await service.updateCotizacionService(
             req.params.id,
             req.body,
-            { rol: req.user?.rol }
+            { rol: req.user?.rol, idUsuario: req.user?.id_usuario }
         );
         return res.status(200).json({
             success: true,
