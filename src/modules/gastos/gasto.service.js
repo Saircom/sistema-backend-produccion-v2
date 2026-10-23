@@ -2,20 +2,16 @@ import { Gasto } from './gasto.model.js';
 
 export const gastoService = {
 
-    async obtenerDetalle(idGasto, usuario) {
-        return await Gasto.obtenerPorId(idGasto, usuario);
-    },
-
-    async listarTodos(usuario) {
-        return await Gasto.obtenerTodos(usuario);
-    },
-
-    async obtenerPorUsuario(idUsuario) {
-        return await Gasto.obtenerTodos({ id_usuario: idUsuario, rol: 'USER' });
+    async obtenerDetalle(idGasto) {
+        return await Gasto.obtenerPorId(idGasto);
     },
 
     async listarSegunRol(idUsuario, esAdmin) {
-        return await Gasto.obtenerTodos({ id_usuario: idUsuario, rol: esAdmin ? 'ADMINISTRADOR' : 'USER' });
+        if (esAdmin) {
+            return await Gasto.obtenerTodos();
+        } else {
+            return await Gasto.obtenerPorUsuario(idUsuario);
+        }
     },
 
     async obtenerPorServicio(idServicio) {
