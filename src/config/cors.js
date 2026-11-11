@@ -4,6 +4,8 @@ const configuredOrigins = (process.env.CORS_ORIGIN || '')
     .filter(Boolean);
 
 const defaultOrigins = [
+    'https://intranet.saircomperu.com.pe',
+    'https://sistema-frontend-produccion-v2-production-cde0.up.railway.app',
     'https://sistema-frontend-produccion-v2-production-7446.up.railway.app',
     'http://localhost:5173',
     'http://localhost:5174',
@@ -31,10 +33,18 @@ const isPrivateViteOrigin = (origin) => {
     }
 };
 
-export const isOriginAllowed = (origin) =>
-    !origin ||
-    allowedOrigins.includes(origin.replace(/\/$/, '')) ||
-    isPrivateViteOrigin(origin);
+export const isOriginAllowed = (origin) => {
+    if (!origin) return true;
+    if (process.env.CORS_ORIGIN === '*') return true;
+    const cleanOrigin = origin.replace(/\/$/, '');
+    if (allowedOrigins.includes(cleanOrigin)) return true;
+    if (isPrivateViteOrigin(origin)) return true;
+    try {
+        const url = new URL(cleanOrigin);
+        if (url.hostname.endsWith('.railway.app')) return true;
+    } catch {}
+    return false;
+};
 
 export const corsOrigin = (origin, callback) => {
     if (isOriginAllowed(origin)) return callback(null, true);
